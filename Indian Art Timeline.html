@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Indian Art History — A Visual Timeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --bg: #150f0c;
+        --bg-raised: #1e1611;
+        --stone: #e9dcc4;
+        --stone-dim: #a99b85;
+        --terracotta: #c1602f;
+        --terracotta-dim: rgba(193, 96, 47, 0.35);
+        --gold: #c9a24b;
+        --line: rgba(201, 162, 75, 0.28);
+        --serif: 'Cormorant Garamond', Georgia, serif;
+        --sans: 'Jost', 'Segoe UI', sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--bg);
+        background-image:
+            radial-gradient(ellipse at 20% 0%, rgba(193,96,47,0.10), transparent 55%),
+            radial-gradient(ellipse at 80% 100%, rgba(201,162,75,0.08), transparent 55%);
+        color: var(--stone);
+        font-family: var(--sans);
+        overflow: hidden;
+    }
+
+    /* --- Header --- */
+    header {
+        position: absolute;
+        top: 0; left: 0; width: 100%;
+        z-index: 10;
+        text-align: center;
+        padding-top: 2.2rem;
+        pointer-events: none;
+    }
+
+    h1 {
+        font-family: var(--serif);
+        font-weight: 500;
+        font-size: clamp(1.8rem, 4vw, 2.8rem);
+        letter-spacing: 0.5px;
+        margin: 0;
+        color: var(--stone);
+        text-shadow: 0 2px 20px rgba(0,0,0,0.6);
+    }
+
+    .subtitle {
+        font-family: var(--sans);
+        font-weight: 300;
+        font-size: 0.85rem;
+        color: var(--stone-dim);
+        letter-spacing: 0.5px;
+        margin-top: 0.4rem;
+    }
+
+    /* --- Horizontal Timeline Container --- */
+    .timeline-wrapper {
+        display: flex;
+        align-items: center;
+        height: 100vh;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-snap-type: x mandatory;
+        scroll-behavior: smooth;
+        padding: 0 50vw;
+    }
+
+    .timeline-wrapper::-webkit-scrollbar { display: none; }
+    .timeline-wrapper { -ms-overflow-style: none; scrollbar-width: none; }
+
+    .timeline-line {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        width: 100%;
+        height: 1px;
+        background: linear-gradient(to right, transparent, var(--line) 8%, var(--line) 92%, transparent);
+        z-index: 0;
+    }
+
+    /* --- Scroll progress rail --- */
+    .progress-rail {
+        position: absolute;
+        bottom: 28px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(60vw, 480px);
+        height: 2px;
+        background: rgba(255,255,255,0.08);
+        border-radius: 2px;
+        z-index: 10;
+    }
+    .progress-fill {
+        height: 100%;
+        width: 0%;
+        background: var(--terracotta);
+        border-radius: 2px;
+        transition: width 0.1s linear;
+    }
+    .progress-hint {
+        position: absolute;
+        bottom: 42px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.68rem;
+        letter-spacing: 1.5px;
+        color: var(--stone-dim);
+        z-index: 10;
+        white-space: nowrap;
+    }
+
+    /* --- Artifact Nodes --- */
+    .artifact-node {
+        position: relative;
+        scroll-snap-align: center;
+        min-width: 240px;
+        margin: 0 46px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer;
+        z-index: 1;
+        transition: transform 0.35s cubic-bezier(.2,.8,.2,1);
+    }
+
+    .artifact-node:hover { transform: scale(1.045); }
+
+    .artifact-node::before {
+        content: '';
+        position: absolute;
+        width: 1px;
+        height: 76px;
+        background-image: linear-gradient(to bottom, var(--gold) 40%, transparent 40%);
+        background-size: 1px 8px;
+        opacity: 0.7;
+    }
+
+    .node-top { transform: translateY(-124px); }
+    .node-top::before { bottom: -76px; }
+    .node-bottom { transform: translateY(124px); flex-direction: column-reverse; }
+    .node-bottom::before { top: -76px; }
+    .node-bottom .artifact-info { margin-top: 0; margin-bottom: 14px; }
+
+    .node-index {
+        position: absolute;
+        top: -10px;
+        right: -8px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: var(--bg-raised);
+        border: 1px solid var(--line);
+        color: var(--gold);
+        font-size: 0.65rem;
+        font-family: var(--sans);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2;
+    }
+    .node-bottom .node-index { top: auto; bottom: -10px; }
+
+    .frame {
+        position: relative;
+        width: 168px;
+        height: 168px;
+        border-radius: 4px;
+        overflow: hidden;
+        border: 1px solid rgba(201,162,75,0.25);
+        box-shadow: 0 14px 30px rgba(0,0,0,0.55);
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        background:
+            linear-gradient(rgba(0,0,0,0.05), rgba(0,0,0,0.05)),
+            var(--bg-raised);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px;
+    }
+
+    .artifact-node:hover .frame {
+        border-color: var(--gold);
+        box-shadow: 0 14px 34px rgba(0,0,0,0.6), 0 0 0 3px var(--terracotta-dim);
+    }
+
+    .artifact-img {
+        max-width: 100%;
+        max-height: 100%;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        display: block;
+        filter: saturate(0.94) contrast(1.02);
+    }
+
+    .artifact-info {
+        text-align: center;
+        margin-top: 14px;
+        max-width: 190px;
+    }
+
+    .artifact-year {
+        font-family: var(--sans);
+        color: var(--terracotta);
+        font-weight: 500;
+        font-size: 0.78rem;
+        letter-spacing: 0.5px;
+    }
+    .artifact-title {
+        font-family: var(--serif);
+        font-size: 1.15rem;
+        margin-top: 4px;
+        line-height: 1.25;
+        color: var(--stone);
+    }
+    .artifact-era {
+        font-size: 0.68rem;
+        color: var(--stone-dim);
+        margin-top: 3px;
+        font-style: italic;
+        font-family: var(--serif);
+    }
+
+    /* --- Modal Overlay --- */
+    .modal-overlay {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(10, 7, 5, 0.86);
+        backdrop-filter: blur(6px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+        z-index: 100;
+        padding: 20px;
+    }
+
+    .modal-overlay.active { opacity: 1; pointer-events: all; }
+
+    .modal-content {
+        background: var(--bg-raised);
+        border: 1px solid rgba(201,162,75,0.2);
+        border-radius: 6px;
+        padding: 42px;
+        max-width: 820px;
+        width: 100%;
+        display: flex;
+        gap: 34px;
+        position: relative;
+        transform: translateY(16px);
+        transition: transform 0.3s ease;
+        max-height: 86vh;
+        overflow-y: auto;
+    }
+
+    .modal-overlay.active .modal-content { transform: translateY(0); }
+
+    @media (max-width: 720px) {
+        .modal-content { flex-direction: column; padding: 28px 22px; }
+        .timeline-wrapper { padding: 0 50vw; }
+        .modal-img-wrap { max-width: 100%; }
+        header { padding-top: 1.4rem; }
+        .frame { width: 118px; height: 118px; }
+        .artifact-node { margin: 0 30px; min-width: 190px; }
+        .node-top { transform: translateY(-100px); }
+        .node-top::before { bottom: -58px; height: 58px; }
+        .node-bottom { transform: translateY(100px); }
+        .node-bottom::before { top: -58px; height: 58px; }
+    }
+
+    .close-btn {
+        position: absolute;
+        top: 14px; right: 18px;
+        font-size: 26px;
+        line-height: 1;
+        color: var(--stone-dim);
+        cursor: pointer;
+        border: none;
+        background: none;
+        font-family: var(--sans);
+    }
+    .close-btn:hover { color: var(--stone); }
+
+    .modal-img-wrap {
+        flex-shrink: 0;
+        width: 260px;
+        height: 330px;
+        border-radius: 3px;
+        background: rgba(0,0,0,0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        box-shadow: 0 16px 32px rgba(0,0,0,0.5);
+    }
+    .modal-img {
+        max-width: 100%;
+        max-height: 100%;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        display: block;
+    }
+
+    .modal-text-content h2 {
+        margin: 0 0 4px 0;
+        font-family: var(--serif);
+        font-weight: 500;
+        font-size: 1.9rem;
+        color: var(--stone);
+    }
+    .modal-text-content .era-line {
+        margin: 0 0 18px 0;
+        font-size: 0.85rem;
+        color: var(--terracotta);
+        font-weight: 500;
+        letter-spacing: 0.3px;
+    }
+    .modal-text-content p.desc {
+        line-height: 1.65;
+        color: #d9cdb8;
+        font-size: 1.02rem;
+        margin: 0 0 20px 0;
+    }
+
+    .fact-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px 20px;
+        border-top: 1px solid var(--line);
+        padding-top: 16px;
+    }
+    .fact { font-size: 0.82rem; }
+    .fact .label {
+        display: block;
+        color: var(--stone-dim);
+        font-size: 0.68rem;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        margin-bottom: 2px;
+    }
+    .fact .value { color: var(--stone); }
+
+    /* Nav arrows */
+    .nav-arrow {
+        position: fixed;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(30,22,17,0.6);
+        border: 1px solid var(--line);
+        color: var(--gold);
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 20;
+        font-size: 1.1rem;
+        transition: background 0.2s ease;
+        user-select: none;
+    }
+    .nav-arrow:hover { background: rgba(193,96,47,0.35); }
+    .nav-prev { left: 22px; }
+    .nav-next { right: 22px; }
+    @media (max-width: 720px) { .nav-arrow { display: none; } }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>Indian Art History</h1>
+    <div class="subtitle">Fourteen works, Bhimbetka to Amrita Sher-Gil — scroll or use the arrow keys</div>
+</header>
+
+<div class="nav-arrow nav-prev" onclick="scrollByNode(-1)">&#8249;</div>
+<div class="nav-arrow nav-next" onclick="scrollByNode(1)">&#8250;</div>
+
+<div class="timeline-line"></div>
+<div class="timeline-wrapper" id="timeline"></div>
+
+<div class="progress-hint">SCROLL TO TRAVEL THROUGH TIME</div>
+<div class="progress-rail"><div class="progress-fill" id="progressFill"></div></div>
+
+<div class="modal-overlay" id="modal">
+    <div class="modal-content">
+        <button class="close-btn" onclick="closeModal()">&times;</button>
+        <div class="modal-img-wrap">
+            <img src="" alt="Artifact" class="modal-img" id="modal-img">
+        </div>
+        <div class="modal-text-content">
+            <h2 id="modal-title">Title</h2>
+            <p class="era-line" id="modal-era">Era | Year</p>
+            <p class="desc" id="modal-desc">Description goes here.</p>
+            <div class="fact-grid">
+                <div class="fact"><span class="label">Medium</span><span class="value" id="modal-medium"></span></div>
+                <div class="fact"><span class="label">Location found / made</span><span class="value" id="modal-location"></span></div>
+                <div class="fact"><span class="label">Now housed at</span><span class="value" id="modal-housed"></span></div>
+                <div class="fact"><span class="label">Why it matters</span><span class="value" id="modal-significance"></span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const FALLBACK = i => `https://picsum.photos/seed/art${i}/500/650`;
+
+const artifacts = [
+    {
+        year: "c. 30,000 BCE", title: "Bhimbetka Cave Paintings", era: "Prehistoric Era",
+        description: "Mesolithic and Upper Paleolithic rock paintings depicting animals, communal dances, and hunting scenes, drawn in ochre, green and white pigments across a cluster of over 750 sandstone shelters.",
+        medium: "Mineral pigment (hematite, manganese oxide) on rock",
+        location: "Bhimbetka Rock Shelters, Raisen district, Madhya Pradesh",
+        housed: "In situ — UNESCO World Heritage Site",
+        significance: "The earliest known evidence of human artistic activity on the Indian subcontinent.",
+        image: "https://www.worldhistory.org/uploads/images/3536.jpg"
+    },
+    {
+        year: "c. 2500 BCE", title: "The Dancing Girl", era: "Indus Valley Civilization",
+        description: "A small bronze figurine of a confident, naturalistically posed young woman, one hand on her hip and adorned with bangles — cast using the lost-wax method nearly 4,500 years ago.",
+        medium: "Bronze, lost-wax (cire perdue) casting",
+        location: "Mohenjo-daro, Sindh (present-day Pakistan)",
+        housed: "National Museum, New Delhi",
+        significance: "Evidence of advanced metallurgy and one of the earliest bronze sculptures from South Asia.",
+        image: "https://www.worldhistory.org/uploads/images/360.jpg"
+    },
+    {
+        year: "c. 300 BCE", title: "Didarganj Yakshi", era: "Mauryan Period",
+        description: "A life-size chauri (fly-whisk) bearer carved from Chunar sandstone, celebrated for its mirror-like 'Mauryan polish' and the naturalistic rendering of the female form and ornament.",
+        medium: "Polished Chunar sandstone",
+        location: "Didarganj, Patna, Bihar",
+        housed: "Bihar Museum, Patna",
+        significance: "One of the finest surviving examples of the technical mastery of Mauryan-era stone carving.",
+        image: "https://www.worldhistory.org/uploads/images/5843.jpg"
+    },
+    {
+        year: "c. 250 BCE", title: "Lion Capital of Ashoka", era: "Mauryan Empire",
+        description: "Four Asiatic lions stand back to back atop an abacus carved with a lion, elephant, bull and horse separated by dharma wheels, crowning a pillar Ashoka raised at the site of the Buddha's first sermon.",
+        medium: "Polished sandstone, single block",
+        location: "Sarnath, Uttar Pradesh",
+        housed: "Sarnath Museum, Uttar Pradesh",
+        significance: "Adopted as the State Emblem of India; the wheel appears at the centre of the national flag.",
+        image: "https://commons.wikimedia.org/wiki/Special:FilePath/Sarnath%20capital.jpg"
+    },
+    {
+        year: "c. 50 BCE", title: "Sanchi Stupa Toranas", era: "Sunga / Satavahana Period",
+        description: "Four intricately carved stone gateways ring the Great Stupa, narrating Jataka tales and scenes from the Buddha's life through symbols — the Bodhi tree, footprints, an empty throne — since the Buddha is never shown in human form.",
+        medium: "Carved sandstone",
+        location: "Sanchi, Madhya Pradesh",
+        housed: "In situ — UNESCO World Heritage Site",
+        significance: "A key example of aniconic Buddhist art, before the human image of the Buddha emerged.",
+        image: "https://www.worldhistory.org/uploads/images/12651.jpg"
+    },
+    {
+        year: "c. 150 CE", title: "Seated Buddha", era: "Gandhara School (Kushan)",
+        description: "Carved in grey schist, this Buddha shows robes draped in the realistic, deeply-folded style of Hellenistic sculpture fused with Indian iconography and meditative pose.",
+        medium: "Grey schist",
+        location: "Gandhara region (present-day Pakistan / eastern Afghanistan)",
+        housed: "Various museum collections worldwide",
+        significance: "Among the earliest depictions of the Buddha in human form, blending Greco-Roman and Indian traditions.",
+        image: "https://www.worldhistory.org/uploads/images/6017.jpg"
+    },
+    {
+        year: "c. 475 CE", title: "Padmapani Bodhisattva", era: "Gupta Period",
+        description: "A serene, lotus-bearing Bodhisattva painted on the walls of Cave 1 at Ajanta, rendered with subtle tonal shading and downcast eyes that convey deep spiritual compassion.",
+        medium: "Fresco (tempera on plaster)",
+        location: "Ajanta Caves, Cave 1, Maharashtra",
+        housed: "In situ — UNESCO World Heritage Site",
+        significance: "A high point of the Gupta 'Golden Age', showing painterly sophistication rarely equalled in ancient art.",
+        image: "https://commons.wikimedia.org/wiki/Special:FilePath/Bodhisattva%20Padmapani%2C%20cave%201%2C%20Ajanta%2C%20India.jpg"
+    },
+    {
+        year: "7th C. CE", title: "Descent of the Ganges", era: "Pallava Dynasty",
+        description: "Also called Arjuna's Penance, this vast open-air relief carved across two monolithic boulders teems with gods, sages, elephants and celestial beings converging as the river Ganga descends to earth.",
+        medium: "Monolithic rock relief carving",
+        location: "Mahabalipuram, Tamil Nadu",
+        housed: "In situ — UNESCO World Heritage Site",
+        significance: "One of the largest open-air rock reliefs in the world.",
+        image: "https://www.worldhistory.org/uploads/images/4126.jpg"
+    },
+    {
+        year: "c. 1000 CE", title: "Nataraja", era: "Chola Dynasty",
+        description: "Shiva dances within a ring of fire, one foot raised, hair flying outward, balancing creation and destruction — a bronze composition prized for its dynamic yet perfectly balanced form.",
+        medium: "Bronze, lost-wax casting",
+        location: "Tamil Nadu",
+        housed: "Museum collections including the Government Museum, Chennai",
+        significance: "Regarded as the supreme achievement of Chola bronze casting and a defining image of Hindu art.",
+        image: "https://www.worldhistory.org/uploads/images/4045.jpg"
+    },
+    {
+        year: "c. 1030 CE", title: "Khajuraho Sculptures", era: "Chandela Dynasty",
+        description: "The Kandariya Mahadeva temple's sandstone walls are covered in thousands of figures — deities, dancers, musicians and mithuna (amorous couples) — carved with extraordinary anatomical detail and movement.",
+        medium: "Carved sandstone",
+        location: "Khajuraho, Madhya Pradesh",
+        housed: "In situ — UNESCO World Heritage Site",
+        significance: "Celebrated for uniting religious symbolism with an uninhibited celebration of the human form.",
+        image: "https://www.worldhistory.org/img/c/p/2400x1254/3970.jpg"
+    },
+    {
+        year: "c. 1620 CE", title: "Jahangir Preferring a Sufi Shaikh", era: "Mughal Empire",
+        description: "Emperor Jahangir is shown seated on an hourglass throne, turning away kings to honour a Sufi saint — a richly gilded allegory painted by the Mughal court artist Bichitr.",
+        medium: "Opaque watercolour and gold on paper",
+        location: "Painted at the Mughal court",
+        housed: "Freer Gallery of Art, Smithsonian Institution",
+        significance: "A masterwork of Mughal miniature painting, blending Persian technique with Indian subject and symbolism.",
+        image: "https://worldhistorycommons.org/sites/default/files/Bichitr-Jahangir-preferring-a-sufi-sheikh-to-kings-PD1.jpg"
+    },
+    {
+        year: "c. 1750 CE", title: "Bani Thani", era: "Kishangarh School (Rajput)",
+        description: "Elongated eyes, an arched brow and a lotus-like profile define this portrait of a poet-singer at the Kishangarh court, painted with a delicacy that has made her India's best-known miniature muse.",
+        medium: "Miniature painting, gouache on paper",
+        location: "Kishangarh, Rajasthan",
+        housed: "National Museum, New Delhi",
+        significance: "Often called the 'Mona Lisa of India'; a defining image of the Rajput miniature tradition.",
+        image: "https://cdn.shopify.com/s/files/1/1194/1498/files/4_Radha__Bani_Thani__Kishangarh__ca._1750__National_Museum_New_Delhi_480x480.jpg"
+    },
+    {
+        year: "1905 CE", title: "Bharat Mata", era: "Bengal School of Art",
+        description: "A saffron-robed woman holds a book, sheaves of rice, cloth and a rosary — Abanindranath Tagore's gentle, spiritual personification of the nation painted in soft watercolour washes.",
+        medium: "Watercolour",
+        location: "Painted in Calcutta (present-day Kolkata)",
+        housed: "Victoria Memorial Hall, Kolkata",
+        significance: "Became an icon of the Swadeshi movement and marked a deliberate turn away from Western academic painting.",
+        image: "https://smarthistory.org/wp-content/uploads/2024/02/Bharat_Mata_by_Abanindranath_Tagore.jpg"
+    },
+    {
+        year: "1935 CE", title: "Three Girls", era: "Modern Era",
+        description: "Three young women sit close together, their expressions withdrawn and melancholic — Amrita Sher-Gil's post-impressionist eye turned toward the quiet interior lives of rural Indian women.",
+        medium: "Oil on canvas",
+        location: "Painted in India",
+        housed: "National Gallery of Modern Art, New Delhi",
+        significance: "A landmark in the shift toward Indian modernism, fusing European technique with Indian subject matter.",
+        image: "https://worldhistorycommons.org/sites/default/files/2024-10/435px-Amrita_Sher-Gil_Group_of_Three_Girls_0.jpg"
+    }
+];
+
+const timeline = document.getElementById('timeline');
+const modal = document.getElementById('modal');
+
+artifacts.forEach((art, index) => {
+    const node = document.createElement('div');
+    const positionClass = index % 2 === 0 ? 'node-top' : 'node-bottom';
+    node.className = `artifact-node ${positionClass}`;
+    node.setAttribute('data-index', index);
+
+    node.innerHTML = `
+        <div class="frame">
+            <img src="${art.image}" alt="${art.title}" class="artifact-img"
+                 onerror="this.onerror=null;this.src='${FALLBACK(index)}';">
+        </div>
+        <div class="node-index">${String(index + 1).padStart(2,'0')}</div>
+        <div class="artifact-info">
+            <div class="artifact-year">${art.year}</div>
+            <div class="artifact-title">${art.title}</div>
+            <div class="artifact-era">${art.era}</div>
+        </div>
+    `;
+
+    node.onclick = () => openModal(art, index);
+    timeline.appendChild(node);
+});
+
+function openModal(art, index) {
+    const img = document.getElementById('modal-img');
+    img.src = art.image;
+    img.onerror = () => { img.onerror = null; img.src = FALLBACK(index); };
+    document.getElementById('modal-title').innerText = art.title;
+    document.getElementById('modal-era').innerText = `${art.era} · ${art.year}`;
+    document.getElementById('modal-desc').innerText = art.description;
+    document.getElementById('modal-medium').innerText = art.medium;
+    document.getElementById('modal-location').innerText = art.location;
+    document.getElementById('modal-housed').innerText = art.housed;
+    document.getElementById('modal-significance').innerText = art.significance;
+    modal.classList.add('active');
+}
+
+function closeModal() { modal.classList.remove('active'); }
+
+modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal.classList.contains('active')) closeModal();
+});
+
+// Scroll progress + arrow navigation
+const wrapper = document.getElementById('timeline');
+const progressFill = document.getElementById('progressFill');
+
+function updateProgress() {
+    const max = wrapper.scrollWidth - wrapper.clientWidth;
+    const pct = max > 0 ? (wrapper.scrollLeft / max) * 100 : 0;
+    progressFill.style.width = pct + '%';
+}
+wrapper.addEventListener('scroll', updateProgress);
+window.addEventListener('resize', updateProgress);
+updateProgress();
+
+function scrollByNode(direction) {
+    const nodes = Array.from(document.querySelectorAll('.artifact-node'));
+    const center = wrapper.scrollLeft + wrapper.clientWidth / 2;
+    let idx = nodes.findIndex(n => n.offsetLeft + n.offsetWidth / 2 > center);
+    if (idx === -1) idx = nodes.length - 1;
+    let targetIdx = direction > 0 ? idx + (nodes[idx].offsetLeft + nodes[idx].offsetWidth/2 - center < 5 ? 1 : 0) : idx - 1;
+    targetIdx = Math.max(0, Math.min(nodes.length - 1, targetIdx));
+    const target = nodes[targetIdx];
+    wrapper.scrollTo({ left: target.offsetLeft + target.offsetWidth/2 - wrapper.clientWidth/2, behavior: 'smooth' });
+}
+
+document.addEventListener('keydown', (e) => {
+    if (modal.classList.contains('active')) return;
+    if (e.key === 'ArrowRight') scrollByNode(1);
+    if (e.key === 'ArrowLeft') scrollByNode(-1);
+});
+</script>
+</body>
+</html>

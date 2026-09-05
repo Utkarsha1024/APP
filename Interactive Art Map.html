@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Art of India — An Interactive Map of Indian Art History</title>
+<!-- Leaflet CSS for accurate mapping -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#171423;
+    --ink-2:#211d33;
+    --panel:#efe6d0;
+    --panel-2:#e4d9bd;
+    --cream:#f4ecd8;
+    --cream-dim:#cfc6ad;
+    --terracotta:#c1452e;
+    --terracotta-dim:#8a3220;
+    --marigold:#dba53f;
+    --wine:#7a2438;
+    --peacock:#3f7263;
+    --indigo-light:#5f6fb0;
+    --line: rgba(244,236,216,0.16);
+    --shadow: 0 24px 60px rgba(0,0,0,0.45);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -5%, rgba(219,165,63,0.10), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 100% 10%, rgba(193,69,46,0.12), transparent 55%),
+      var(--ink);
+    color:var(--cream);
+    font-family:'Work Sans', sans-serif;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    letter-spacing:-0.01em;
+  }
+  a{color:inherit;}
+
+  /* ---------- Layout shell ---------- */
+  .wrap{max-width:1280px;margin:0 auto;padding:0 28px;}
+
+  /* ---------- Header / Hero ---------- */
+  header.hero{
+    padding:56px 0 28px;
+    border-bottom:1px solid var(--line);
+  }
+  .eyebrow{
+    display:flex;align-items:center;gap:10px;
+    color:var(--marigold);
+    font-size:13px;
+    margin-bottom:18px;
+  }
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--terracotta);}
+  h1.display{
+    font-size:clamp(2.1rem, 5vw, 3.4rem);
+    line-height:1.04;
+    max-width:14ch;
+    margin:0 0 18px;
+    color:var(--cream);
+  }
+  h1.display em{
+    font-style:italic;
+    color:var(--terracotta);
+  }
+  .hero-sub{
+    max-width:56ch;
+    color:var(--cream-dim);
+    font-size:16.5px;
+    margin:0 0 26px;
+  }
+  .hero-stats{
+    display:flex;gap:36px;flex-wrap:wrap;
+    margin-top:6px;
+  }
+  .stat b{
+    display:block;
+    font-family:'Fraunces', serif;
+    font-size:1.6rem;
+    color:var(--marigold);
+    font-weight:600;
+  }
+  .stat span{font-size:12.5px;color:var(--cream-dim);}
+
+  /* ---------- Controls ---------- */
+  .controls{
+    display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+    padding:22px 0;
+    border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:30;
+    background:linear-gradient(var(--ink) 82%, transparent);
+    backdrop-filter: blur(6px);
+  }
+  .chip{
+    border:1px solid var(--line);
+    background:transparent;
+    color:var(--cream-dim);
+    padding:8px 15px;
+    border-radius:100px;
+    font-size:13px;
+    font-family:'Work Sans',sans-serif;
+    cursor:pointer;
+    display:flex;align-items:center;gap:8px;
+    transition:border-color .18s ease, color .18s ease, background .18s ease;
+    white-space:nowrap;
+  }
+  .chip .swatch{width:8px;height:8px;border-radius:50%;flex:none;}
+  .chip:hover{border-color:var(--cream-dim);color:var(--cream);}
+  .chip.active{
+    background:var(--cream);
+    color:var(--ink);
+    border-color:var(--cream);
+  }
+  .chip.active .swatch{box-shadow:0 0 0 2px rgba(23,20,35,0.25) inset;}
+  .search-box{
+    margin-left:auto;
+    position:relative;
+  }
+  .search-box input{
+    background:var(--ink-2);
+    border:1px solid var(--line);
+    color:var(--cream);
+    padding:9px 14px 9px 34px;
+    border-radius:100px;
+    font-family:'Work Sans',sans-serif;
+    font-size:13px;
+    width:200px;
+    outline:none;
+    transition:border-color .18s ease, width .18s ease;
+  }
+  .search-box input:focus{border-color:var(--marigold); width:230px;}
+  .search-box svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:.55;}
+
+  /* ---------- Main map layout ---------- */
+  main{padding:36px 0 20px;}
+  .map-layout{
+    display:grid;
+    grid-template-columns: minmax(0,1fr) 380px;
+    gap:34px;
+    align-items:flex-start;
+  }
+  .map-stage{
+    position:relative;
+    border:1px solid var(--line);
+    border-radius:18px;
+    background:
+      radial-gradient(ellipse 600px 500px at 30% 20%, rgba(193,69,46,0.10), transparent 60%),
+      var(--ink-2);
+    overflow:hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .map-stage .caption{
+    display:flex; justify-content:space-between; align-items:baseline;
+    padding: 26px 26px 0;
+    margin-bottom:6px;
+  }
+  .map-stage .caption h2{
+    font-size:1.05rem; margin:0; color:var(--cream);
+  }
+  .map-stage .caption .hint{
+    font-size:12px; color:var(--cream-dim);
+  }
+  
+  /* Leaflet Map Container */
+  #mapWrap {
+    width: 100%;
+    height: 520px;
+    background: transparent;
+    z-index: 1; /* Keeps markers under the sticky header */
+  }
+
+  /* Custom Leaflet Marker Overrides */
+  .leaflet-div-icon-custom {
+    background: transparent;
+    border: none;
+  }
+  .marker{
+    position:relative;
+    width:22px;height:22px;
+    border-radius:50%;
+    border:none;
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    padding:0;
+    transition:transform .18s ease, opacity .25s ease;
+  }
+  .marker .ring{
+    position:absolute;inset:-9px;
+    border-radius:50%;
+    border:1px solid currentColor;
+    opacity:0;
+    transition:opacity .18s ease, inset .18s ease;
+  }
+  .marker .core{
+    width:100%;height:100%;
+    border-radius:50%;
+    background:currentColor;
+    box-shadow:0 0 0 3px rgba(23,20,35,0.55), 0 2px 10px rgba(0,0,0,0.5);
+  }
+  .marker:hover{transform:scale(1.12);}
+  .marker:hover .ring, .marker.active .ring{opacity:.55; inset:-13px;}
+  .marker.active .core{box-shadow:0 0 0 3px var(--cream), 0 2px 14px rgba(0,0,0,0.6);}
+  .marker.dim{opacity:.18;}
+  .marker .label{
+    position:absolute;
+    top:calc(100% + 6px);
+    left:50%;
+    transform:translateX(-50%);
+    font-size:10.5px;
+    color:var(--cream-dim);
+    white-space:nowrap;
+    pointer-events:none;
+    opacity:0;
+    transition:opacity .15s ease;
+  }
+  .marker:hover .label{opacity:1;}
+
+  .legend{
+    display:flex;flex-wrap:wrap;gap:14px;
+    padding: 16px 26px 26px;
+    border-top:1px solid var(--line);
+    font-size:12px;
+    color:var(--cream-dim);
+  }
+  .legend .item{display:flex;align-items:center;gap:7px;}
+  .legend .sw{width:9px;height:9px;border-radius:50%;}
+
+  /* ---------- Detail panel ---------- */
+  .detail-panel{
+    border:1px solid var(--line);
+    border-radius:18px;
+    background:var(--panel);
+    color:var(--ink);
+    min-height:520px;
+    position:sticky;
+    top:96px;
+    overflow:hidden;
+  }
+  .detail-inner{padding:30px 28px 26px;}
+  .placeholder{
+    display:flex;flex-direction:column;align-items:flex-start;
+    justify-content:center;
+    min-height:520px;
+    padding:30px 28px;
+    color:var(--terracotta-dim);
+  }
+  .placeholder svg{margin-bottom:18px; opacity:.85;}
+  .placeholder h3{margin:0 0 8px; color:var(--ink); font-size:1.2rem;}
+  .placeholder p{margin:0; color:#6b5f4a; font-size:14px; max-width:34ch;}
+
+  /* Image Requirement styling */
+  .detail-image {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 12px;
+    margin-bottom: 6px;
+    border: 1px solid rgba(23,20,35,0.1);
+    background: rgba(23,20,35,0.06);
+  }
+  .image-credit{
+    font-size:10.5px;
+    color:#9a8c6c;
+    margin:0 0 20px;
+    text-align:right;
+  }
+  .image-credit a{ color:#9a8c6c; text-decoration:none; border-bottom:1px dotted #cbbf9c; }
+  .facts-grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:10px 14px;
+    background:rgba(23,20,35,0.05);
+    border-radius:10px;
+    padding:12px 14px;
+    margin:0 0 20px;
+  }
+  .facts-grid .fact b{
+    display:block; font-size:10px; text-transform:uppercase; letter-spacing:.04em;
+    color:#8a7c5c; margin-bottom:2px; font-weight:600;
+  }
+  .facts-grid .fact span{ font-size:12.5px; color:#3c3323; }
+
+  .detail-icon{
+    width:76px;height:76px;
+    border-radius:14px;
+    display:flex;align-items:center;justify-content:center;
+    margin-bottom:18px;
+  }
+  .tag{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:11px; letter-spacing:.02em;
+    padding:4px 10px;
+    border-radius:100px;
+    background:rgba(23,20,35,0.08);
+    color:var(--ink);
+    margin-bottom:10px;
+  }
+  .tag .sw{width:7px;height:7px;border-radius:50%;}
+  .detail-inner h3{
+    font-size:1.55rem; margin:0 0 2px; color:var(--ink); line-height:1.15;
+  }
+  .detail-inner .state{
+    font-size:13px; color:#7a6c50; margin-bottom:4px;
+  }
+  .detail-inner .era{
+    font-size:12.5px; color:var(--terracotta-dim); font-weight:600; margin-bottom:18px;
+  }
+  .detail-inner .summary{
+    font-size:14.5px; color:#3c3323; margin-bottom:20px;
+  }
+  .field{margin-bottom:16px;}
+  .field h4{
+    margin:0 0 5px;
+    font-size:11px;
+    text-transform:none;
+    letter-spacing:.02em;
+    color:#8a7c5c;
+    font-family:'Work Sans',sans-serif;
+    font-weight:600;
+  }
+  .field p{margin:0; font-size:13.5px; color:#3c3323;}
+  .divider{height:1px; background:rgba(23,20,35,0.1); margin:20px 0;}
+
+  /* ---------- Footer ---------- */
+  footer{
+    border-top:1px solid var(--line);
+    margin-top:50px;
+    padding:28px 0 44px;
+    display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px;
+  }
+  footer .note{font-size:12.5px; color:var(--cream-dim); max-width:46ch;}
+  footer .team{font-size:12.5px; color:var(--cream-dim); text-align:right;}
+  footer .team b{color:var(--cream); font-family:'Fraunces',serif; font-weight:600; display:block; margin-bottom:4px; font-size:13.5px;}
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 920px){
+    .map-layout{grid-template-columns: 1fr;}
+    .detail-panel{position:static; min-height:0;}
+    .placeholder{min-height:0; padding:26px 24px;}
+    .search-box{margin-left:0; order:99; width:100%;}
+    .search-box input{width:100%;}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="eyebrow"><span class="dot"></span> INTERACTIVE ART MAP · INDIAN ART HISTORY</div>
+    <h1 class="display">Two thousand years of Indian art, <em>place by place</em></h1>
+    <p class="hero-sub">From the rock-cut murals of Ajanta to the artists' commune at Cholamandal, this map traces where India's major art movements were born. Tap a marker to explore each style's techniques, artists, historical context and living legacy — illustrated with real photographs of the art.</p>
+    <div class="hero-stats">
+      <div class="stat"><b>18</b><span>locations mapped</span></div>
+      <div class="stat"><b>5</b><span>art movements</span></div>
+      <div class="stat"><b>~2,200 yrs</b><span>of history</span></div>
+    </div>
+  </header>
+
+  <div class="controls" id="controls">
+    <button class="chip active" data-filter="all">All locations</button>
+    <button class="chip" data-filter="ancient"><span class="swatch" style="background:#c1452e"></span>Ancient &amp; Temple Art</button>
+    <button class="chip" data-filter="folk"><span class="swatch" style="background:#3f7263"></span>Folk &amp; Tribal</button>
+    <button class="chip" data-filter="textile"><span class="swatch" style="background:#dba53f"></span>Textile Art</button>
+    <button class="chip" data-filter="courts"><span class="swatch" style="background:#7a2438"></span>Royal Courts</button>
+    <button class="chip" data-filter="modern"><span class="swatch" style="background:#5f6fb0"></span>Modern &amp; Contemporary</button>
+    <div class="search-box">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="searchInput" placeholder="Search a place, state or style…">
+    </div>
+  </div>
+
+  <main>
+    <div class="map-layout">
+      <div class="map-stage">
+        <div class="caption">
+          <h2>Tap a point to open its story</h2>
+          <span class="hint" id="visibleCount">18 of 18 shown</span>
+        </div>
+        
+        <!-- Leaflet Map Injection Point -->
+        <div id="mapWrap"></div>
+
+        <div class="legend" id="legend">
+          <div class="item"><span class="sw" style="background:#c1452e"></span>Ancient &amp; Temple Art</div>
+          <div class="item"><span class="sw" style="background:#3f7263"></span>Folk &amp; Tribal</div>
+          <div class="item"><span class="sw" style="background:#dba53f"></span>Textile Art</div>
+          <div class="item"><span class="sw" style="background:#7a2438"></span>Royal Courts</div>
+          <div class="item"><span class="sw" style="background:#5f6fb0"></span>Modern &amp; Contemporary</div>
+        </div>
+      </div>
+
+      <div class="detail-panel" id="detailPanel">
+        <div class="placeholder" id="placeholder">
+          <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+          <h3>Choose a location on the map</h3>
+          <p>Each marker opens the story of an art form — who made it, for whom, and what it still tells us about India's history.</p>
+        </div>
+        <div class="detail-inner" id="detailInner" style="display:none;"></div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="note">Built for the Interactive Art Map assignment (CO1) · Explores the geographic spread and influence of India's regional art movements.</div>
+    <div class="team">
+      <b>Team</b>
+      Utkarsha Raj, Divyanshu Singh, Akash Singh, Ayush Ojha
+    </div>
+  </footer>
+</div>
+
+<!-- Include Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+const ICONS = {
+  cave: `<svg viewBox="0 0 100 100"><path d="M10 85 L10 55 Q50 5 90 55 L90 85 Z" fill="none" stroke="currentColor" stroke-width="4"/><circle cx="50" cy="55" r="8" fill="currentColor"/></svg>`,
+  spire: `<svg viewBox="0 0 100 100"><path d="M50 8 L64 40 L58 40 L70 68 L62 68 L78 90 L22 90 L38 68 L30 68 L42 40 L36 40 Z" fill="currentColor"/></svg>`,
+  wheel: `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="38" fill="none" stroke="currentColor" stroke-width="5"/><circle cx="50" cy="50" r="6" fill="currentColor"/>${[0,30,60,90,120,150].map(a=>`<line x1="50" y1="50" x2="${50+38*Math.cos(a*Math.PI/180)}" y2="${50+38*Math.sin(a*Math.PI/180)}" stroke="currentColor" stroke-width="4"/>`).join('')}</svg>`,
+  lotusBorder: `<svg viewBox="0 0 100 100"><rect x="8" y="8" width="84" height="84" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M50 30 Q65 45 50 70 Q35 45 50 30Z" fill="currentColor"/><path d="M30 55 Q50 45 70 55" fill="none" stroke="currentColor" stroke-width="2.5"/></svg>`,
+  fish: `<svg viewBox="0 0 100 100"><path d="M15 50 Q40 20 75 50 Q40 80 15 50Z" fill="none" stroke="currentColor" stroke-width="4"/><circle cx="35" cy="46" r="3" fill="currentColor"/><path d="M75 50 L90 38 L90 62 Z" fill="currentColor"/><path d="M25 50 Q40 40 55 50 Q40 60 25 50" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
+  dancers: `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="34" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 4"/>${[0,60,120,180,240,300].map(a=>{const x=50+30*Math.cos(a*Math.PI/180),y=50+30*Math.sin(a*Math.PI/180);return `<g transform="translate(${x} ${y})"><circle r="4" fill="currentColor"/><path d="M0 4 L-6 16 M0 4 L6 16 M-7 9 L7 9" stroke="currentColor" stroke-width="2" fill="none"/></g>`;}).join('')}</svg>`,
+  paisley: `<svg viewBox="0 0 100 100"><path d="M50 20 Q80 20 78 55 Q76 80 50 82 Q60 65 45 55 Q30 45 40 30 Q45 22 50 20Z" fill="currentColor"/></svg>`,
+  jharokha: `<svg viewBox="0 0 100 100"><path d="M20 90 L20 40 Q50 10 80 40 L80 90 Z" fill="none" stroke="currentColor" stroke-width="4"/><line x1="20" y1="60" x2="80" y2="60" stroke="currentColor" stroke-width="2"/><line x1="50" y1="40" x2="50" y2="90" stroke="currentColor" stroke-width="2"/></svg>`,
+  vine: `<svg viewBox="0 0 100 100"><path d="M10 50 Q30 20 50 50 Q70 80 90 50" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="30" cy="34" r="5" fill="currentColor"/><circle cx="50" cy="50" r="5" fill="currentColor"/><circle cx="70" cy="66" r="5" fill="currentColor"/></svg>`,
+  goldArch: `<svg viewBox="0 0 100 100"><path d="M15 85 L15 45 Q50 10 85 45 L85 85 Z" fill="none" stroke="currentColor" stroke-width="4"/><path d="M35 85 L35 55 Q50 35 65 55 L65 85 Z" fill="currentColor" opacity="0.85"/></svg>`,
+  gesso: `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="28" fill="currentColor"/>${[...Array(10)].map((_,i)=>{const a=i*36,x=50+34*Math.cos(a*Math.PI/180),y=50+34*Math.sin(a*Math.PI/180);return `<circle cx="${x}" cy="${y}" r="3" fill="currentColor"/>`;}).join('')}</svg>`,
+  washTree: `<svg viewBox="0 0 100 100"><path d="M50 90 L50 55" stroke="currentColor" stroke-width="4"/><ellipse cx="50" cy="38" rx="26" ry="24" fill="currentColor" opacity="0.55"/><ellipse cx="38" cy="30" rx="14" ry="13" fill="currentColor" opacity="0.4"/></svg>`,
+  swirl: `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="10" fill="currentColor"/><path d="M50 50 Q80 40 75 15 M50 50 Q20 60 25 85 M50 50 Q75 75 90 60" fill="none" stroke="currentColor" stroke-width="3"/></svg>`
+};
+
+const CATS = {
+  ancient:{label:'Ancient & Temple Art', color:'#c1452e'},
+  folk:{label:'Folk & Tribal', color:'#3f7263'},
+  textile:{label:'Textile Art', color:'#dba53f'},
+  courts:{label:'Royal Courts & Miniatures', color:'#7a2438'},
+  modern:{label:'Modern & Contemporary', color:'#5f6fb0'}
+};
+
+// Replaced abstract X/Y coordinates with true Lat/Lng for geographic mapping
+const LOCATIONS = [
+  { id:'ajanta', name:'Ajanta & Ellora Caves', state:'Maharashtra', cat:'ancient', era:'c. 2nd century BCE – 10th century CE', lat:20.5519, lng:75.7033, icon:'cave',
+    img:'https://commons.wikimedia.org/wiki/Special:FilePath/Coming%20Of%20Sinhala%20(Mural%20At%20Ajanta%20In%20Cave%20No%2017).jpg?width=700',
+    imgCredit:'Wikimedia Commons', imgCreditUrl:'https://commons.wikimedia.org/wiki/File:Coming_Of_Sinhala_(Mural_At_Ajanta_In_Cave_No_17).jpg',
+    summary:'Rock-cut cave complexes that hold some of the earliest and finest surviving Indian paintings and sculpture.',
+    artForm:'Ajanta\'s caves are painted with fresco-style murals in natural pigments — ochres and later a richer palette of yellow, red, white, black and green sourced from local minerals — applied over lime plaster on excavated rock walls and ceilings.',
+    artists:'Anonymous Buddhist monk-artists and guilds, working in two bursts of activity: under the Satavahanas (2nd–1st c. BCE) and later under the Vakataka king Harisena (5th c. CE).',
+    context:'Rediscovered by a British officer, John Smith, in 1819 while tiger-hunting, after centuries hidden under jungle growth. The murals mainly narrate the Jataka tales of the Buddha\'s past lives.',
+    materials:'Lime plaster ground, natural mineral & vegetable pigments, rock-cut sandstone',
+    legacy:'A UNESCO World Heritage Site since 1983; its painting style influenced Buddhist art across Central Asia, China and Japan.' },
+  { id:'khajuraho', name:'Khajuraho Temples', state:'Madhya Pradesh', cat:'ancient', era:'c. 950 – 1050 CE', lat:24.8318, lng:79.9199, icon:'spire',
+    img:'https://commons.wikimedia.org/wiki/Special:FilePath/Varaha%20Sculpture%20-%20Khajuraho.jpg?width=700',
+    imgCredit:'Wikimedia Commons', imgCreditUrl:'https://commons.wikimedia.org/wiki/File:Varaha_Sculpture_-_Khajuraho.jpg',
+    summary:'A cluster of Hindu and Jain temples famous for extraordinarily intricate sandstone sculpture, including the celebrated (and much-discussed) erotic friezes.',
+    artForm:'Carved directly into fine-grained sandstone blocks, the temples are covered in continuous bands of sculpture — gods, apsaras, animals and everyday life — that read almost like a stone storybook wrapped around the shrine.',
+    artists:'Commissioned over roughly a century by successive rulers of the Chandela dynasty, using guilds of anonymous master masons and sculptors.',
+    context:'Of an original 85 temples, only about 25 survive today, saved largely by their remote location, which kept them out of the way of later iconoclasm.',
+    materials:'Fine-grained sandstone, quarried and dressed on-site',
+    legacy:'A UNESCO World Heritage Site since 1986; the surviving Western Group temples are still actively conserved by the Archaeological Survey of India.' },
+  { id:'konark', name:'Konark Sun Temple', state:'Odisha', cat:'ancient', era:'c. 1250 CE', lat:19.8876, lng:86.0945, icon:'wheel',
+    img:'https://commons.wikimedia.org/wiki/Special:FilePath/A%20chariot%20wheel%20of%20the%20sun%20god,%20Sun%20temple,%20Konark.jpg?width=700',
+    imgCredit:'Wikimedia Commons', imgCreditUrl:'https://commons.wikimedia.org/wiki/File:A_chariot_wheel_of_the_sun_god,_Sun_temple,_Konark.jpg',
+    summary:'A temple built as a colossal stone chariot for the sun god Surya, drawn by seven carved horses.',
+    artForm:'Designed as a chariot resting on 24 elaborately carved stone wheels, each about 3 metres wide and functional as a sundial, with every spoke and hub covered in relief carving.',
+    artists:'Built under King Narasimhadeva I of the Eastern Ganga dynasty, reputedly by 1,200 artisans over roughly 12 years.',
+    context:'Local legend credits master craftsman Bisu Maharana — who is said to have sacrificed himself by jumping from the dome — with completing the temple\'s crowning kalasha.',
+    materials:'Khondalite and chlorite stone blocks, iron dowels for structural binding',
+    legacy:'A UNESCO World Heritage Site since 1984; the main tower collapsed centuries ago, but the surviving mandapa and wheels remain among India\'s most photographed monuments.' },
+  { id:'pattachitra', name:'Raghurajpur', state:'Odisha', cat:'folk', era:'Ancient roots', lat:19.8166, lng:85.8166, icon:'lotusBorder',
+    img:'https://commons.wikimedia.org/wiki/Special:FilePath/Raghurajpur%20Pattachitra,ODISHA.JPG?width=700',
+    imgCredit:'Wikimedia Commons', imgCreditUrl:'https://commons.wikimedia.org/wiki/File:Raghurajpur_Pattachitra,ODISHA.JPG',
+    summary:'A heritage crafts village on the outskirts of Puri that keeps the Pattachitra scroll-painting tradition alive.',
+    artForm:'Pattachitra ("cloth picture") is painted on canvas stiffened with a paste of tamarind seed and chalk powder, then polished smooth before natural pigments are applied in flat, richly outlined mythological scenes, mostly of Jagannath, Radha and Krishna.',
+    artists:'Passed down through hereditary chitrakar (painter) families for over a thousand years; traditionally these same painters supplied ceremonial cloths for the Jagannath Temple in Puri.',
+    context:'Declared India\'s first heritage crafts village by INTACH, Raghurajpur is also the birthplace of Odissi dance legend Kelucharan Mohapatra.',
+    materials:'Tamarind-paste-stiffened cloth, natural stone & shell pigments, fine squirrel-hair brushes',
+    legacy:'Pattachitra holds a Geographical Indication (GI) tag; nearly every household in the village still practices the craft today.' },
+  { id:'madhubani', name:'Mithila Region', state:'Bihar', cat:'folk', era:'Ancient tradition', lat:26.3495, lng:86.0827, icon:'fish',
+    img:'https://commons.wikimedia.org/wiki/Special:FilePath/Colorful%20Madhubani%20painting.jpg?width=700',
+    imgCredit:'Wikimedia Commons', imgCreditUrl:'https://commons.wikimedia.org/wiki/File:Colorful_Madhubani_painting.jpg',
+    summary:'Home of Madhubani (Mithila) painting — bold, line-driven folk art traditionally made directly on mud walls.',
+    artForm:'Uses natural pigments and dyes with fingers, twigs, brushes or matchsticks, defined by double-line borders, geometric patterns and recurring motifs of fish, peacocks and the sun and moon, filled in with no empty space left uncovered.',
+    artists:'Traditionally practised only by women, passed down mother to daughter within Mithila households as part of ritual wall and floor decoration for festivals and weddings.',
+    context:'The art form entered the wider commercial market after a severe 1966–67 drought, when the All India Handicrafts Board encouraged women to paint on paper to sell for income — turning a domestic ritual into a livelihood.',
+    materials:'Handmade paper or cloth, natural pigments from plants, soot and cow dung, bamboo-stick or matchstick pens',
+    legacy:'Holds a GI tag; celebrated artists like the late Padma Shri awardee Sita Devi helped bring it international recognition, and it now decorates an entire express train route in Bihar.' },
+  { id:'warli', name:'Warli Region (Palghar)', state:'Maharashtra', cat:'folk', era:'Ancient origins', lat:19.6960, lng:72.7655, icon:'dancers',
+    img:'https://commons.wikimedia.org/wiki/Special:FilePath/A%20Warli%20painting%20by%20Jivya%20Soma%20Mashe,%20Thane%20district.jpg?width=700',
+    imgCredit:'Wikimedia Commons', imgCreditUrl:'https://commons.wikimedia.org/wiki/File:A_Warli_painting_by_Jivya_Soma_Mashe,_Thane_district.jpg',
+    summary:'Home of the Warli tribe\'s striking, minimalist white-on-mud wall painting.',
+    artForm:'Painted using a paste of rice flour, water and gum applied with a chewed bamboo stick as a brush, on a base of red or brown mud plaster, built entirely from basic geometric shapes — circles, triangles and squares — depicting the tarpa dance, harvests and daily tribal life.',
+    artists:'Traditionally made by Warli women for ritual occasions; the Padma Shri artist Jivya Soma Mashe (1934–2018) was the first to paint Warli art on paper and canvas, bringing it to national and international audiences.',
+    context:'Originally a ritual practice tied to weddings and harvest festivals, painted fresh onto the walls of mud huts rather than kept as a permanent artwork.',
+    materials:'Rice-paste white pigment, red ochre mud ground, chewed bamboo-stick brushes',
+    legacy:'Now sold worldwide on paper, textiles and even sneakers; Jivya Soma Mashe\'s descendants and students continue the tradition in Maharashtra\'s Palghar-Thane belt.' },
+  { id:'kalamkari', name:'Srikalahasti', state:'Andhra Pradesh', cat:'textile', era:'Ancient craft', lat:13.7495, lng:79.7034, icon:'paisley',
+    img:'https://commons.wikimedia.org/wiki/Special:FilePath/KALAMKARI%20HAND%20PAINTED%20CLOTH%20SRIKALAHASTI%20AP%20-%20panoramio.jpg?width=700',
+    imgCredit:'Wikimedia Commons', imgCreditUrl:'https://commons.wikimedia.org/wiki/File:KALAMKARI_HAND_PAINTED_CLOTH_SRIKALAHASTI_AP_-_panoramio.jpg',
+    summary:'Temple town that gave rise to the Srikalahasti style of Kalamkari textile art.',
+    artForm:'Kalamkari ("pen-work", from the Persian kalam and kari) is hand-painted with a bamboo or date-palm pen dipped in natural dye onto cotton first soaked in a mix of buffalo milk and astringents — used here mainly to freehand mythological scenes from the Ramayana and Mahabharata for temple hangings.',
+    artists:'Practised by hereditary artisan communities in Srikalahasti, historically working under temple patronage rather than a royal court.',
+    context:'The style travelled along trade routes as far as Persia and Europe; under Mughal and Golconda rule after 1687 it expanded to include portraits and courtly scenes alongside religious ones.',
+    materials:'Cotton cloth, natural dyes (indigo, alizarin, iron and copper mordants), bamboo/date-palm pen',
+    legacy:'Registered with a GI tag in 2005; Srikalahasti\'s temple continues to commission Kalamkari artisans for ceremonial cloths.' },
+  { id:'rajasthan', name:'Jaipur & Kishangarh', state:'Rajasthan', cat:'courts', era:'16th – 19th century', lat:26.9124, lng:75.7873, icon:'jharokha',
+    img:'https://commons.wikimedia.org/wiki/Special:FilePath/4%20Radha%20(Bani%20Thani),%20Kishangarh,%20ca.%201750,%20National%20Museum%20New%20Delhi.jpg?width=700',
+    imgCredit:'Wikimedia Commons', imgCreditUrl:'https://commons.wikimedia.org/wiki/File:4_Radha_(Bani_Thani),_Kishangarh,_ca._1750,_National_Museum_New_Delhi.jpg',
+    summary:'A constellation of Rajput court painting schools, each with its own distinct visual signature.',
+    artForm:'Rajput miniatures use rich mineral and vegetable pigments (often ground lapis lazuli, gold and malachite) with extremely fine brushwork on paper, favouring flat colour fields, stylised courtly figures and devotional Krishna-Radha themes over realism.',
+    artists:'Painted in court ateliers under Rajput rulers; the Kishangarh school is defined by Nihal Chand, whose iconic "Bani Thani" portrait — often called "India\'s Mona Lisa" — is said to depict Maharaja Sawant Singh\'s court poet-singer.',
+    context:'Each princely state (Kishangarh, Bundi, Mewar, Jaipur and others) cultivated a distinct facial type, palette and composition, so a trained eye can identify a painting\'s origin state at a glance.',
+    materials:'Handmade paper, mineral & vegetable pigments, gold leaf, squirrel-hair brushes',
+    legacy:'Bani Thani appeared on an Indian postage stamp in 1973 and remains the most reproduced image from any Rajput school.' },
+  { id:'mughal', name:'Agra', state:'Uttar Pradesh', cat:'courts', era:'16th – 18th century', lat:27.1767, lng:78.0081, icon:'vine',
+    img:'https://commons.wikimedia.org/wiki/Special:FilePath/Mughal%20Basawan%20Birth%20of%20Ghazan%20Khan%20about%201596.jpg?width=700',
+    imgCredit:'Wikimedia Commons', imgCreditUrl:'https://commons.wikimedia.org/wiki/File:Mughal_Basawan_Birth_of_Ghazan_Khan_about_1596.jpg',
+    summary:'Imperial ateliers where Persian technique met Indian subject matter to create a wholly new hybrid style.',
+    artForm:'Mughal miniature painting illustrated grand manuscripts like the Akbarnama and Baburnama in watercolour, ink and gold on paper, prized for lively portraiture, fine detail and accurate depictions of plants, animals and courtly life.',
+    artists:'Court painters including Basawan (renowned for portraiture and colour), Daswanth and the naturalist Ustad Mansur, working under Mughal emperors Akbar, Jahangir and Shah Jahan.',
+    context:'Emperor Jahangir in particular prized accurate, almost scientific depiction of plants and animals, commissioning some of the earliest naturalist illustrations in Indian art.',
+    materials:'Handmade paper, opaque watercolour (gouache), gold and silver leaf',
+    legacy:'Directly shaped later Rajput and Company-era painting; original folios are now held in museums from New Delhi to London.' },
+  { id:'tanjore', name:'Thanjavur', state:'Tamil Nadu', cat:'courts', era:'16th century onward', lat:10.7870, lng:79.1378, icon:'goldArch',
+    img:'https://commons.wikimedia.org/wiki/Special:FilePath/Thanjavur%20Painting.jpg?width=700',
+    imgCredit:'Wikimedia Commons', imgCreditUrl:'https://commons.wikimedia.org/wiki/File:Thanjavur_Painting.jpg',
+    summary:'Home of Tanjore (Thanjavur) painting, known for dense colour, gold-leaf relief and glinting inset gems.',
+    artForm:'Built up on a wooden panel (palagai padam) using cloth glued on with tamarind-seed paste, then a gesso relief of chalk powder and gum for jewellery and architectural details, finished with gold foil, cut glass and semi-precious stones over flat, brightly coloured figures — usually Krishna, Rama or other deities.',
+    artists:'Patronised first by the Nayaka and later the Maratha courts of Thanjavur, and produced by the Raju community of Thanjavur and Tiruchi and the Naidu community of Madurai.',
+    context:'When Maratha power waned after the Anglo-Mysore Wars, the British administration in the region continued to support Tanjore artists, helping the style survive into the modern period.',
+    materials:'Jackfruit or teak wood panel, cloth, gesso (chalk + gum), 22-karat gold foil, glass and gemstones',
+    legacy:'Holds a GI tag; it is still made by hereditary workshops in Thanjavur and remains one of India\'s most recognisable devotional art forms.' },
+  { id:'mysore', name:'Mysore', state:'Karnataka', cat:'courts', era:'17th – 19th century', lat:12.2958, lng:76.6394, icon:'gesso',
+    img:'https://commons.wikimedia.org/wiki/Special:FilePath/Mysore%20Painting.jpg?width=700',
+    imgCredit:'Wikimedia Commons', imgCreditUrl:'https://commons.wikimedia.org/wiki/File:Mysore_Painting.jpg',
+    summary:'A refined, devotional painting school shaped by the Wodeyar court, distinct from Tanjore\'s heavier gold relief.',
+    artForm:'Favours delicate line work and subtle gesso paste (zinc oxide and Arabic gum) built up only on small raised areas of jewellery and architecture, then covered in thin gold foil — a lighter, more restrained relief than Tanjore\'s — with fish-shaped eyes and rounded chins as a stylistic signature.',
+    artists:'Court painters under the Wodeyar dynasty of Mysore, tracing their lineage back to the Vijayanagara Empire painters who scattered after its 1565 fall.',
+    context:'The emphasis on restraint over dense ornamentation was meant to inspire quiet devotion and humility in the viewer rather than visual spectacle.',
+    materials:'Handmade paper or cloth-covered board, water colours, gesso (zinc oxide + Arabic gum), gold foil',
+    legacy:'Still taught and practised around Mysore and Bengaluru; many works are displayed inside the Mysore Palace itself.' },
+  { id:'bengal', name:'Kolkata & Santiniketan', state:'West Bengal', cat:'modern', era:'Early 20th century', lat:23.6811, lng:87.6749, icon:'washTree',
+    img:'https://commons.wikimedia.org/wiki/Special:FilePath/Bharat%20Mata%20by%20Abanindranath%20Tagore.jpg?width=700',
+    imgCredit:'Wikimedia Commons', imgCreditUrl:'https://commons.wikimedia.org/wiki/File:Bharat_Mata_by_Abanindranath_Tagore.jpg',
+    summary:'Birthplace of the Bengal School, the modern nationalist art movement that reshaped Indian painting.',
+    artForm:'Used a soft "wash technique" — loose, diffused brushwork built up in translucent layers — drawing on Mughal and Ajanta traditions to reject the academic realism taught in colonial-run art schools.',
+    artists:'Led by Abanindranath Tagore (nephew of Rabindranath Tagore) alongside Nandalal Bose, and supported by British art educator E. B. Havell at the Government College of Art, Kolkata.',
+    context:'Closely tied to the swadeshi independence movement; Tagore\'s 1905 painting "Bharat Mata" (shown here), depicting India as a four-armed goddess holding grain, cloth, a book and a rosary, became an icon of anti-colonial resistance.',
+    materials:'Paper, watercolour/tempera wash, sometimes gouache and gold accents',
+    legacy:'Directly led to the "modern Indian painting" movement and the founding of the arts faculty at Santiniketan\'s Visva-Bharati University.' },
+  { id:'cholamandal', name:'Cholamandal Village', state:'Tamil Nadu', cat:'modern', era:'Founded 1966', lat:12.9110, lng:80.2478, icon:'swirl',
+    img:'https://commons.wikimedia.org/wiki/Special:FilePath/Cholamandel-Center-for-Contemporary-Art-ECR-Chennai-7.JPG?width=700',
+    imgCredit:'Wikimedia Commons', imgCreditUrl:'https://commons.wikimedia.org/wiki/File:Cholamandel-Center-for-Contemporary-Art-ECR-Chennai-7.JPG',
+    summary:'India\'s largest and longest-running artists\' commune, and the home of the Madras Art Movement.',
+    artForm:'Blended indigenous South Indian motifs — calligraphic script, temple forms, folk figures — with modernist abstraction in painting, bronze, stone and metal sculpture, and batik textile work.',
+    artists:'Founded in 1966 by K. C. S. Paniker, then principal of the Madras School of Arts, along with 30 fellow artists including J. Sultan Ali and sculptor S. Nandagopal (Paniker\'s son).',
+    context:'The commune was funded by its own first batik exhibition, whose proceeds bought the 8.5-acre plot of land — making it a rare, self-financed experiment in cooperative art-making outside the commercial gallery system.',
+    materials:'Bronze, wood, granite, batik-dyed cloth, oil and tempera on canvas',
+    legacy:'Still an active working village today, with a public sculpture garden and the "Museum of the Madras Movement" open to visitors near Chennai.' },
+  { id:'kashmir', name:'Srinagar', state:'Jammu & Kashmir', cat:'textile', era:'15th century onward', lat:34.0837, lng:74.7974, icon:'paisley',
+    img:'https://commons.wikimedia.org/wiki/Special:FilePath/Shawl%20makers%20in%20Kashmir%20(1867).jpg?width=700',
+    imgCredit:'Wikimedia Commons', imgCreditUrl:'https://commons.wikimedia.org/wiki/File:Shawl_makers_in_Kashmir_(1867).jpg',
+    summary:'Source of Pashmina weaving and the paisley motif that later swept European fashion.',
+    artForm:'Kashmiri shawls are hand-spun and woven from Pashmina — the ultra-fine undercoat of the high-altitude Changthangi goat — on a handloom operated with both hands and feet; the most complex "Kani" weave uses hundreds of small bobbins instead of a shuttle and can take over a year to finish one shawl.',
+    artists:'Made in hereditary karkhanadar weaving workshops, with distinct specialists for spinning, weaving, dyeing and the fine needle-and-thread "sozni" embroidery finish.',
+    context:'Popularised in Kashmir from the 15th century under Sultan Zain-ul-Abidin, Kashmiri shawls became a prized 18th–19th century export to Europe — Napoleon famously gifted one to Empress Josephine — which is how the paisley motif entered Western textile design.',
+    materials:'Pashmina goat-down fibre, natural and later synthetic dyes, silk thread for embroidery',
+    legacy:'Kashmir Pashmina holds a GI tag; genuine hand-woven shawls remain a benchmark of luxury textile craftsmanship worldwide.' },
+  { id:'phulkari', name:'Amritsar', state:'Punjab', cat:'textile', era:'Folk tradition', lat:31.6340, lng:74.8723, icon:'gesso',
+    img:'https://commons.wikimedia.org/wiki/Special:FilePath/Patiala%20Phulkari.jpg?width=700',
+    imgCredit:'Wikimedia Commons', imgCreditUrl:'https://commons.wikimedia.org/wiki/File:Patiala_Phulkari.jpg',
+    summary:'Home of Phulkari, Punjab\'s vivid floss-silk "flower work" embroidery.',
+    artForm:'Darned by hand onto coarse, hand-loomed khaddar cotton using the darning stitch, worked entirely from the reverse of the fabric with no pattern traced beforehand — designs (geometric, floral, or narrative) were carried in memory and passed on by word of mouth.',
+    artists:'Traditionally made at home by mothers and grandmothers as part of a bride\'s trousseau, never sold commercially in its original form.',
+    context:'Phulkari was nearly lost after the 1947 Partition disrupted Punjabi village life and displaced the artisan families who carried the tradition; it has since been actively revived.',
+    materials:'Khaddar (hand-woven cotton), untwisted floss silk thread (patt) historically dyed by lalaris',
+    legacy:'Now GI-tagged and produced commercially across Punjab, Haryana and Rajasthan, appearing on modern sarees and ready-to-wear fashion.' },
+  { id:'kutch', name:'Kutch', state:'Gujarat', cat:'folk', era:'Ancient craft', lat:23.2507, lng:69.6693, icon:'wheel',
+    img:'https://commons.wikimedia.org/wiki/Special:FilePath/Bandhani%20Dress%20Material%20by%20Kutch%20Artesania.jpg?width=700',
+    imgCredit:'Wikimedia Commons', imgCreditUrl:'https://commons.wikimedia.org/wiki/File:Bandhani_Dress_Material_by_Kutch_Artesania.jpg',
+    summary:'Desert region famous for mirror-work embroidery, tie-dye Bandhani and rare Rogan cloth painting.',
+    artForm:'Kutch (Kachchhi) embroidery uses cotton or silk thread in chain, satin and buttonhole stitches, studded with small mirrors (abhla) believed to represent water and ward off the evil eye, in six distinct regional styles: Suf, Khaarek, Paako, Rabari, Garasia Jat and Mutava.',
+    artists:'Practised by hereditary pastoral and artisan communities including the Rabari, Ahir, Meghwal and Mutwa, alongside Khatri block-printers who produce the region\'s Bandhani and Ajrakh textiles.',
+    context:'A devastating 2001 earthquake drew renewed national and international attention — and fair-trade support — to Kutchi crafts as a source of livelihood for rebuilding communities.',
+    materials:'Cotton/silk fabric, coloured thread, small glass mirrors (abhla), natural dyes for Bandhani tie-dye',
+    legacy:'Kutch embroidery and Bandhani both carry GI protection; the crafts remain a major source of income for rural women across the district.' },
+  { id:'kerala-mural', name:'Thrissur', state:'Kerala', cat:'ancient', era:'c. 9th century onward', lat:10.5276, lng:76.2144, icon:'spire',
+    img:'https://commons.wikimedia.org/wiki/Special:FilePath/Gajendramoksham%20High%20Resolution.jpg?width=700',
+    imgCredit:'Wikimedia Commons', imgCreditUrl:'https://commons.wikimedia.org/wiki/File:Gajendramoksham_High_Resolution.jpg',
+    summary:'Tradition of vivid, densely detailed temple wall murals depicting Hindu mythology.',
+    artForm:'Painted with vegetable and mineral pigments limited to five traditional colours on wet lime-plastered walls (a fresco technique), following strict iconographic rules laid out in Sanskrit texts like the Chitrasutra and the 16th-century Silparatna.',
+    artists:'Traditionally painted by temple-attached artist communities working under priestly supervision; today conservators like Padma Shri-winning muralist K. Syamala Kumari — the first woman known to practice the craft — restore and continue it.',
+    context:'The style is thought to date to the 9th–12th centuries CE, with the oldest surviving examples found at Thirunadhikkara and Tiruvanchikulam; major masterpieces survive at the Shiva temple in Ettumanoor.',
+    materials:'Lime plaster wall ground, five traditional mineral/vegetable pigments, natural brushes',
+    legacy:'A dedicated conservation and training movement, backed by Kerala\'s cultural institutions, has kept the tradition alive and is restoring damaged murals across the state\'s temples.' },
+  { id:'varanasi', name:'Varanasi', state:'Uttar Pradesh', cat:'textile', era:'Ancient craft', lat:25.3176, lng:82.9739, icon:'vine',
+    img:'https://commons.wikimedia.org/wiki/Special:FilePath/Alkama%20Ansari%20-%20A%20Banarasi%20Saree%20Weaver.jpg?width=700',
+    imgCredit:'Wikimedia Commons', imgCreditUrl:'https://commons.wikimedia.org/wiki/File:Alkama_Ansari_-_A_Banarasi_Saree_Weaver.jpg',
+    summary:'The city behind Banarasi silk, prized for centuries of intricate brocade weaving.',
+    artForm:'Hand-woven on room-sized, foot-powered pit looms in fine katan silk, shot through with real or imitation zari (gold/silver-wrapped thread) using a supplementary weft technique that traces back to Persian weaving styles introduced under Mughal rule.',
+    artists:'Passed down through generations of weaving families, most belonging to the Muslim Ansari (Momin) community, who make up the bulk of Varanasi\'s roughly 40,000 remaining handloom weavers.',
+    context:'Banaras cloth worked in gold and silver thread was already famous by the 16th–17th centuries — European travellers like Ralph Fitch and Jean-Baptiste Tavernier both recorded its scale and quality — and weavers were later entrusted with ceremonial commissions as prestigious as covering the Kaaba in Mecca.',
+    materials:'Katan (pure twisted) silk, zari metallic thread, traditional jacquard-fitted handlooms',
+    legacy:'Holds a GI tag as "Banaras Brocades and Sarees" since 2009; a single elaborate wedding sari can still take weeks to months of continuous weaving to complete.' }
+];
+
+const detailInner = document.getElementById('detailInner');
+const placeholder = document.getElementById('placeholder');
+const visibleCount = document.getElementById('visibleCount');
+
+let activeFilter = 'all';
+let searchTerm = '';
+let activeId = null;
+
+// Initialize Leaflet Map Centered on India
+const map = L.map('mapWrap', {
+  center: [22.5, 79.5],
+  zoom: 4.5,
+  zoomControl: false 
+});
+
+// Use Esri Dark Gray Base tiles (100% free, no API key required)
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+  attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+  maxZoom: 16,
+  minZoom: 4
+}).addTo(map);
+L.control.zoom({ position: 'topright' }).addTo(map);
+
+// Marker Layer Group
+let markersLayer = L.layerGroup().addTo(map);
+
+function matches(loc){
+  const catOk = activeFilter === 'all' || loc.cat === activeFilter;
+  const term = searchTerm.trim().toLowerCase();
+  const searchOk = !term || loc.name.toLowerCase().includes(term) || loc.state.toLowerCase().includes(term) || CATS[loc.cat].label.toLowerCase().includes(term);
+  return catOk && searchOk;
+}
+
+function renderMarkers(){
+  markersLayer.clearLayers();
+  let shown = 0;
+  LOCATIONS.forEach(loc => {
+    if(!matches(loc)) return;
+    shown++;
+    const isActive = loc.id === activeId ? 'active' : '';
+    const c = CATS[loc.cat];
+    
+    // Convert your custom HTML into a real geographic Leaflet icon
+    const customIcon = L.divIcon({
+      className: 'leaflet-div-icon-custom',
+      html: `<div class="marker ${isActive}" style="color:${c.color};">
+               <span class="ring"></span><span class="core"></span>
+               <span class="label">${loc.name}</span>
+             </div>`,
+      iconSize: [22, 22],
+      iconAnchor: [11, 11]
+    });
+
+    const marker = L.marker([loc.lat, loc.lng], { icon: customIcon }).addTo(markersLayer);
+    marker.on('click', () => selectLocation(loc.id));
+  });
+  visibleCount.textContent = shown + ' of ' + LOCATIONS.length + ' shown';
+}
+
+function selectLocation(id){
+  activeId = id;
+  const loc = LOCATIONS.find(l=>l.id===id);
+  if(!loc) return;
+  placeholder.style.display = 'none';
+  detailInner.style.display = 'block';
+  const c = CATS[loc.cat];
+  
+  // Inject content with the required image element 
+  detailInner.innerHTML = `
+    <img src="${loc.img}" alt="${loc.name} Art Form" class="detail-image" loading="lazy" onerror="this.style.display='none'" />
+    <p class="image-credit">Photo: <a href="${loc.imgCreditUrl}" target="_blank" rel="noopener">${loc.imgCredit}</a></p>
+    <div class="detail-icon" style="background:${c.color}22; color:${c.color};">${ICONS[loc.icon]}</div>
+    <div class="tag"><span class="sw" style="background:${c.color}"></span>${c.label}</div>
+    <h3>${loc.name}</h3>
+    <div class="state">${loc.state}</div>
+    <div class="era">${loc.era}</div>
+    <p class="summary">${loc.summary}</p>
+    <div class="facts-grid">
+      <div class="fact"><b>State</b><span>${loc.state}</span></div>
+      <div class="fact"><b>Period</b><span>${loc.era}</span></div>
+      <div class="fact"><b>Materials</b><span>${loc.materials}</span></div>
+      <div class="fact"><b>Category</b><span>${c.label}</span></div>
+    </div>
+    <div class="field"><h4>Art form &amp; technique</h4><p>${loc.artForm}</p></div>
+    <div class="field"><h4>Artists &amp; patrons</h4><p>${loc.artists}</p></div>
+    <div class="field"><h4>Historical context</h4><p>${loc.context}</p></div>
+    <div class="divider"></div>
+    <div class="field"><h4>Legacy today</h4><p>${loc.legacy}</p></div>
+  `;
+  renderMarkers();
+  map.flyTo([loc.lat, loc.lng], 6, { duration: 1 }); // Smooth pan on selection
+  
+  if(window.innerWidth <= 920){
+    document.getElementById('detailPanel').scrollIntoView({behavior:'smooth', block:'start'});
+  }
+}
+
+document.getElementById('controls').addEventListener('click', (e)=>{
+  const chip = e.target.closest('.chip');
+  if(!chip) return;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  chip.classList.add('active');
+  activeFilter = chip.dataset.filter;
+  renderMarkers();
+});
+
+document.getElementById('searchInput').addEventListener('input', (e)=>{
+  searchTerm = e.target.value;
+  renderMarkers();
+});
+
+renderMarkers();
+</script>
+</body>
+</html>
